@@ -5,6 +5,7 @@ import dependencies from "../dependencies"
 
 // TODO
 // - don't let the user go right or left to an empty column
+// - reroot!
 
 const childMap: { [key: string]: Set<string> } = {}
 const parentMap: { [key: string]: Set<string> } = {}
@@ -31,9 +32,11 @@ interface ColumnType {
 
 function getColumnItems({ type, key }: ColumnType) {
 	if (type === "parent") {
-		return Array.from(parentMap[key])
+		const set = parentMap[key]
+		return set ? Array.from(set) : []
 	} else if (type === "child") {
-		return Array.from(childMap[key])
+		const set = childMap[key]
+		return set ? Array.from(set) : []
 	} else {
 		return [key]
 	}
@@ -61,12 +64,16 @@ export default class App extends Component<{}> {
 	private handleKeyPress = (event: KeyboardEvent) => {
 		if (event.code === "ArrowUp") {
 			this.up()
+			event.preventDefault()
 		} else if (event.code === "ArrowDown") {
 			this.down()
+			event.preventDefault()
 		} else if (event.code === "ArrowLeft") {
 			this.left()
+			event.preventDefault()
 		} else if (event.code === "ArrowRight") {
 			this.right()
+			event.preventDefault()
 		}
 	}
 
@@ -79,14 +86,15 @@ export default class App extends Component<{}> {
 				state[focus] = 0
 				return state
 			})
+			this.updateNeighbors()
 		} else if (selection > 0) {
 			// Or decrement the selection but don't go out of bounds
 			this.columnSelection.update(state => {
 				state[focus] = selection - 1
 				return state
 			})
+			this.updateNeighbors()
 		}
-		this.updateNeighbors()
 	}
 
 	private down() {
@@ -100,39 +108,44 @@ export default class App extends Component<{}> {
 				state[focus] = 0
 				return state
 			})
+			this.updateNeighbors()
 		} else if (selection + 1 < items.length) {
 			this.columnSelection.update(state => {
 				state[focus] = selection + 1
 				return state
 			})
+			this.updateNeighbors()
 		}
-		this.updateNeighbors()
 	}
 
 	private left() {
 		const focus = this.focusedColumn.get()
 		const newFocus = focus - 1
-		this.focusedColumn.set(newFocus)
-		if (this.columnSelection.get()[newFocus] === undefined) {
-			this.columnSelection.update(columnSelection => {
-				columnSelection[newFocus] = 0
-				return columnSelection
-			})
+		if (getColumnItems(this.columnTypes.get()[newFocus]).length !== 0) {
+			this.focusedColumn.set(newFocus)
+			if (this.columnSelection.get()[newFocus] === undefined) {
+				this.columnSelection.update(columnSelection => {
+					columnSelection[newFocus] = 0
+					return columnSelection
+				})
+			}
+			this.updateBounds()
 		}
-		this.updateBounds()
 	}
 
 	private right() {
 		const focus = this.focusedColumn.get()
 		const newFocus = focus + 1
-		this.focusedColumn.set(newFocus)
-		if (this.columnSelection.get()[newFocus] === undefined) {
-			this.columnSelection.update(columnSelection => {
-				columnSelection[newFocus] = 0
-				return columnSelection
-			})
+		if (getColumnItems(this.columnTypes.get()[newFocus]).length !== 0) {
+			this.focusedColumn.set(newFocus)
+			if (this.columnSelection.get()[newFocus] === undefined) {
+				this.columnSelection.update(columnSelection => {
+					columnSelection[newFocus] = 0
+					return columnSelection
+				})
+			}
+			this.updateBounds()
 		}
-		this.updateBounds()
 	}
 
 	private updateBounds() {
