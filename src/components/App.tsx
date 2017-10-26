@@ -33,39 +33,201 @@ interface ColumnType {
 	key: string
 }
 
-export default class App extends Component<{}> {
-	private columns: Value<Array<ColumnType>>
-	private anchor: Value<number>
-
-	constructor(props) {
-		super(props)
-		const root = "src/client/stores/RecordStore.ts"
-		const columns: Array<ColumnType> = [
-			{ type: "parent", key: root },
-			{ type: "root", key: root },
-			{ type: "child", key: root },
-		]
-		const anchor = 1
-		this.columns = new Value(columns)
-		this.anchor = new Value(anchor)
+function getColumnItems({ type, key }: ColumnType) {
+	if (type === "parent") {
+		return Array.from(parentMap[key])
+	} else if (type === "child") {
+		return Array.from(childMap[key])
+	} else {
+		return [key]
 	}
+}
+
+const root = "src/client/stores/RecordStore.ts"
+
+export default class App extends Component<{}> {
+	private focusedColumn = new Value(1)
+	private columnSelection = new Value([undefined, 0, undefined])
+	private columnTypes = new Value<Array<ColumnType>>([
+		{ type: "parent", key: root },
+		{ type: "root", key: root },
+		{ type: "child", key: root },
+	])
+
+	willMount() {
+		window.addEventListener("keyup", this.handleKeyPress)
+	}
+
+	willUnMount() {
+		window.removeEventListener("keyup", this.handleKeyPress)
+	}
+
+	private handleKeyPress = (event: KeyboardEvent) => {
+		if (event.code === "ArrowUp") {
+			this.up()
+		} else if (event.code === "ArrowDown") {
+			this.down()
+		} else if (event.code === "ArrowLeft") {
+			this.left()
+		} else if (event.code === "ArrowRight") {
+			this.right()
+		}
+	}
+
+	private up() {
+		const focus = this.focusedColumn.get()
+		const selection = this.columnSelection.get()[focus]
+		if (selection === undefined) {
+			// If there's nothing selection, set it to zero
+			this.columnSelection.update(state => {
+				state[focus] = 0
+				return state
+			})
+		} else if (selection > 0) {
+			// Or decrement the selection but don't go out of bounds
+			this.columnSelection.update(state => {
+				state[focus] = selection - 1
+				return state
+			})
+		}
+		this.updateLeftRight()
+	}
+
+	private down() {
+		const focus = this.focusedColumn.get()
+		const column = this.columnTypes.get()[focus]
+		const selection = this.columnSelection.get()[focus]
+		const items = getColumnItems(column)
+		if (selection === undefined) {
+			// This shouldn't happen...
+			this.columnSelection.update(state => {
+				state[focus] = 0
+				return state
+			})
+		} else if (selection + 1 < items.length) {
+			this.columnSelection.update(state => {
+				state[focus] = selection + 1
+				return state
+			})
+		}
+		this.updateLeftRight()
+	}
+
+	private left() {
+		const focus = this.focusedColumn.get()
+		if (focus === 1) {
+			const focus = this.focusedColumn.get()
+			const column = this.columnTypes.get()[focus]
+			const selection = this.columnSelection.get()[focus]
+			if (selection === undefined) {
+				return
+			}
+			const selectedItem = getColumnItems(column)[selection]
+			this.columnTypes.update(columnTypes => {
+				columnTypes.unshift({ type: "parent", key: selectedItem })
+				return columnTypes
+			})
+			this.columnSelection.update(columnSelection => {
+				columnSelection.unshift(0)
+				return columnSelection
+			})
+		} else {
+			this.focusedColumn.set(focus - 1)
+		}
+	}
+
+	private right() {
+		const focus = this.focusedColumn.get()
+		const columns = this.columnTypes.get()
+		if (focus === columns.length - 2) {
+			const focus = this.focusedColumn.get()
+			const column = this.columnTypes.get()[focus]
+			const selection = this.columnSelection.get()[focus]
+			if (selection === undefined) {
+				return
+			}
+			const selectedItem = getColumnItems(column)[selection]
+			this.columnTypes.update(columnTypes => {
+				columnTypes.push({ type: "child", key: selectedItem })
+				return columnTypes
+			})
+			this.columnSelection.update(columnSelection => {
+				columnSelection.push(0)
+				return columnSelection
+			})
+			this.focusedColumn.set(focus + 1)
+		} else {
+			this.focusedColumn.set(focus + 1)
+		}
+	}
+
+	private updateLeftRight() {
+		const focus = this.focusedColumn.get()
+		const columnTypes = this.columnTypes.get()
+		const items = getColumnItems(columnTypes[focus])
+		const selection = this.columnSelection.get()[focus]
+		if (selection === undefined) {
+			return
+		}
+
+		const selectedItem = items[selection]
+		if (columnTypes[focus + 1].type === "child") {
+			// Clear the selection to the right and update the key
+			this.columnSelection.update(state => {
+				state[focus + 1] = undefined
+				return state.slice(0, focus + 1)
+			})
+			this.columnTypes.update(state => {
+				state[focus + 1].key = selectedItem
+				return state.slice(0, focus + 1)
+			})
+		}
+
+		if (columnTypes[focus - 1].type === "parent") {
+			// Clear the selection to the left and update the key
+			this.columnSelection.update(state => {
+				state[focus - 1] = undefined
+				return state.slice(focus - 1)
+			})
+			this.columnTypes.update(state => {
+				state[focus - 1].key = selectedItem
+				return state.slice(focus - 1)
+			})
+		}
+	}
+
 	view() {
-		return (
-			<div style={{ display: "flex" }}>
-				<div style={{ padding: 12 }}>
-					{Array.from(parentMap[this.root.get()]).map(source => {
-						return <div key={source}>{source}</div>
-					})}
-				</div>
-				<div style={{ padding: 12 }}>
-					<div>{this.root.get()}</div>
-				</div>
-				<div style={{ padding: 12 }}>
-					{Array.from(childMap[this.root.get()]).map(source => {
-						return <div key={source}>{source}</div>
-					})}
-				</div>
-			</div>
-		)
+		const columns = this.columnTypes
+			.get()
+			.map(getColumnItems)
+			.map((items, columnIndex) => {
+				const focused = columnIndex === this.focusedColumn.get()
+				return (
+					<div
+						key={columnIndex}
+						style={{
+							padding: 12,
+							border: focused ? "1px solid black" : "1px solid white",
+						}}
+					>
+						{items.map((source, rowIndex) => {
+							const selection = this.columnSelection.get()[columnIndex]
+							const selected = rowIndex === selection
+							return (
+								<div
+									key={rowIndex}
+									style={{
+										border: selected ? "1px solid black" : "1px solid white",
+									}}
+								>
+									{source}
+								</div>
+							)
+						})}
+					</div>
+				)
+			})
+
+		return <div style={{ display: "flex" }}>{columns}</div>
 	}
 }
