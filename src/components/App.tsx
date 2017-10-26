@@ -90,7 +90,7 @@ export default class App extends Component<{}> {
 				return state
 			})
 		}
-		this.updateLeftRight()
+		this.updateNeighbors()
 	}
 
 	private down() {
@@ -110,61 +110,76 @@ export default class App extends Component<{}> {
 				return state
 			})
 		}
-		this.updateLeftRight()
+		this.updateNeighbors()
 	}
 
 	private left() {
 		const focus = this.focusedColumn.get()
-		if (focus === 1) {
-			const focus = this.focusedColumn.get()
-			const column = this.columnTypes.get()[focus]
-			const selection = this.columnSelection.get()[focus]
-			if (selection === undefined) {
-				return
-			}
-			const selectedItem = getColumnItems(column)[selection]
+		const newFocus = focus - 1
+		this.focusedColumn.set(newFocus)
+		if (this.columnSelection.get()[newFocus] === undefined) {
+			this.columnSelection.update(columnSelection => {
+				columnSelection[newFocus] = 0
+				return columnSelection
+			})
+		}
+		this.updateBounds()
+	}
+
+	private right() {
+		const focus = this.focusedColumn.get()
+		const newFocus = focus + 1
+		this.focusedColumn.set(newFocus)
+		if (this.columnSelection.get()[newFocus] === undefined) {
+			this.columnSelection.update(columnSelection => {
+				columnSelection[newFocus] = 0
+				return columnSelection
+			})
+		}
+		this.updateBounds()
+	}
+
+	private updateBounds() {
+		const focus = this.focusedColumn.get()
+		const columnTypes = this.columnTypes.get()
+		const column = columnTypes[focus]
+		const items = getColumnItems(column)
+		const selection = this.columnSelection.get()[focus]
+		if (selection === undefined) {
+			return
+		}
+
+		if (focus === 0) {
+			const selectedItem = items[selection]
 			this.columnTypes.update(columnTypes => {
 				columnTypes.unshift({ type: "parent", key: selectedItem })
 				return columnTypes
 			})
 			this.columnSelection.update(columnSelection => {
-				columnSelection.unshift(0)
+				columnSelection.unshift(undefined)
 				return columnSelection
 			})
-		} else {
-			this.focusedColumn.set(focus - 1)
+			this.focusedColumn.set(1)
 		}
-	}
 
-	private right() {
-		const focus = this.focusedColumn.get()
-		const columns = this.columnTypes.get()
-		if (focus === columns.length - 2) {
-			const focus = this.focusedColumn.get()
-			const column = this.columnTypes.get()[focus]
-			const selection = this.columnSelection.get()[focus]
-			if (selection === undefined) {
-				return
-			}
-			const selectedItem = getColumnItems(column)[selection]
+		if (focus === columnTypes.length - 1) {
+			const selectedItem = items[selection]
 			this.columnTypes.update(columnTypes => {
 				columnTypes.push({ type: "child", key: selectedItem })
 				return columnTypes
 			})
 			this.columnSelection.update(columnSelection => {
-				columnSelection.push(0)
+				columnSelection.push(undefined)
 				return columnSelection
 			})
-			this.focusedColumn.set(focus + 1)
-		} else {
-			this.focusedColumn.set(focus + 1)
 		}
 	}
 
-	private updateLeftRight() {
+	private updateNeighbors() {
 		const focus = this.focusedColumn.get()
 		const columnTypes = this.columnTypes.get()
-		const items = getColumnItems(columnTypes[focus])
+		const column = columnTypes[focus]
+		const items = getColumnItems(column)
 		const selection = this.columnSelection.get()[focus]
 		if (selection === undefined) {
 			return
@@ -175,11 +190,11 @@ export default class App extends Component<{}> {
 			// Clear the selection to the right and update the key
 			this.columnSelection.update(state => {
 				state[focus + 1] = undefined
-				return state.slice(0, focus + 1)
+				return state.slice(0, focus + 2)
 			})
 			this.columnTypes.update(state => {
 				state[focus + 1].key = selectedItem
-				return state.slice(0, focus + 1)
+				return state.slice(0, focus + 2)
 			})
 		}
 
@@ -197,6 +212,7 @@ export default class App extends Component<{}> {
 	}
 
 	view() {
+		console.log(this.columnTypes.get().length)
 		const columns = this.columnTypes
 			.get()
 			.map(getColumnItems)
@@ -210,6 +226,7 @@ export default class App extends Component<{}> {
 							border: focused ? "1px solid black" : "1px solid white",
 						}}
 					>
+						column
 						{items.map((source, rowIndex) => {
 							const selection = this.columnSelection.get()[columnIndex]
 							const selected = rowIndex === selection
