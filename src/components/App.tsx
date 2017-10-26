@@ -3,9 +3,6 @@ import Component from "reactive-magic/component"
 import { Value } from "reactive-magic"
 import dependencies from "../dependencies"
 
-// TODO
-// - reroot!
-
 const childMap: { [key: string]: Set<string> } = {}
 const parentMap: { [key: string]: Set<string> } = {}
 
@@ -62,12 +59,10 @@ export default class App extends Component<{}> {
 	}
 
 	private reroot() {
-		// everything to the left needs to be a parent
-		// everything to the right needs to be a child
-
 		const focus = this.focusedColumn.get()
 		const columnTypes = this.columnTypes.get()
-		if (columnTypes[focus - 1].type !== "parent") {
+		const leftNeighbor = columnTypes[focus - 1]
+		if (leftNeighbor.type !== "parent" || leftNeighbor.anchor) {
 			this.focusedColumn.set(0)
 			this.columnTypes.update(columnTypes => {
 				return columnTypes.slice(focus).map((item, index) => {
@@ -85,7 +80,8 @@ export default class App extends Component<{}> {
 			this.updateBounds()
 		}
 
-		if (columnTypes[focus + 1].type !== "child") {
+		const rightNeightbor = columnTypes[focus + 1]
+		if (rightNeightbor.type !== "child" || rightNeightbor.anchor) {
 			this.columnTypes.update(columnTypes => {
 				return columnTypes.slice(0, focus + 1).map((item, index) => {
 					if (index === focus) {
