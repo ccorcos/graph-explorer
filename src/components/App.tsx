@@ -3,6 +3,9 @@ import Component from "reactive-magic/component"
 import { Value } from "reactive-magic"
 import dependencies from "../dependencies"
 
+// TODO
+// - don't let the user go right or left to an empty column
+
 const childMap: { [key: string]: Set<string> } = {}
 const parentMap: { [key: string]: Set<string> } = {}
 
@@ -20,13 +23,6 @@ dependencies.dependencies.forEach(parentDep => {
 		parentMap[child].add(parent)
 	})
 })
-
-// A column is either a parent of X, child of X, or root of X.
-// The anchor determines which column splits parent and child.
-
-// we need a list of columns
-// the anchor is the column index
-// columns need to know their index in the global
 
 interface ColumnType {
 	type: "parent" | "child" | "root"
@@ -208,11 +204,11 @@ export default class App extends Component<{}> {
 				state[focus - 1].key = selectedItem
 				return state.slice(focus - 1)
 			})
+			this.focusedColumn.set(1)
 		}
 	}
 
 	view() {
-		console.log(this.columnTypes.get().length)
 		const columns = this.columnTypes
 			.get()
 			.map(getColumnItems)
@@ -222,11 +218,15 @@ export default class App extends Component<{}> {
 					<div
 						key={columnIndex}
 						style={{
+							display: "inline-block",
 							padding: 12,
+							width: 325,
+							height: "80vh",
+							overflowY: "auto",
+							overflowX: "hidden",
 							border: focused ? "1px solid black" : "1px solid white",
 						}}
 					>
-						column
 						{items.map((source, rowIndex) => {
 							const selection = this.columnSelection.get()[columnIndex]
 							const selected = rowIndex === selection
@@ -245,6 +245,8 @@ export default class App extends Component<{}> {
 				)
 			})
 
-		return <div style={{ display: "flex" }}>{columns}</div>
+		return (
+			<div style={{ overflowX: "auto", whiteSpace: "nowrap" }}>{columns}</div>
+		)
 	}
 }
