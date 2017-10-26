@@ -4,7 +4,6 @@ import { Value } from "reactive-magic"
 import dependencies from "../dependencies"
 
 // TODO
-// - don't let the user go right or left to an empty column
 // - reroot!
 
 const childMap: { [key: string]: Set<string> } = {}
@@ -61,6 +60,34 @@ export default class App extends Component<{}> {
 		window.removeEventListener("keyup", this.handleKeyPress)
 	}
 
+	private reroot() {
+		// everything to the left needs to be a parent
+		// everything to the right needs to be a child
+
+		const focus = this.focusedColumn.get()
+		const columnTypes = this.columnTypes.get()
+		if (columnTypes[focus - 1].type !== "parent") {
+			this.focusedColumn.set(0)
+			this.columnTypes.update(columnTypes => {
+				return columnTypes.slice(focus)
+			})
+			this.columnSelection.update(columnSelection => {
+				return columnSelection.slice(focus)
+			})
+			this.updateBounds()
+		}
+
+		if (columnTypes[focus + 1].type !== "child") {
+			this.columnTypes.update(columnTypes => {
+				return columnTypes.slice(0, focus + 1)
+			})
+			this.columnSelection.update(columnSelection => {
+				return columnSelection.slice(0, focus + 1)
+			})
+			this.updateBounds()
+		}
+	}
+
 	private handleKeyPress = (event: KeyboardEvent) => {
 		if (event.code === "ArrowUp") {
 			this.up()
@@ -73,6 +100,9 @@ export default class App extends Component<{}> {
 			event.preventDefault()
 		} else if (event.code === "ArrowRight") {
 			this.right()
+			event.preventDefault()
+		} else if (event.code === "Space") {
+			this.reroot()
 			event.preventDefault()
 		}
 	}
