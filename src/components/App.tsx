@@ -39,7 +39,7 @@ function getColumnItems({ type, key }: ColumnType) {
 	}
 }
 
-const root = "src/client/stores/RecordStore.ts"
+const root = "src/client/main.ts"
 
 export default class App extends Component<{}> {
 	private focusedColumn = new Value(1)
