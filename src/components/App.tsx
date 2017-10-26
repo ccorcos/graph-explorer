@@ -27,6 +27,7 @@ dependencies.dependencies.forEach(parentDep => {
 interface ColumnType {
 	type: "parent" | "child" | "root"
 	key: string
+	anchor: boolean
 }
 
 function getColumnItems({ type, key }: ColumnType) {
@@ -47,9 +48,9 @@ export default class App extends Component<{}> {
 	private focusedColumn = new Value(1)
 	private columnSelection = new Value([undefined, 0, undefined])
 	private columnTypes = new Value<Array<ColumnType>>([
-		{ type: "parent", key: root },
-		{ type: "root", key: root },
-		{ type: "child", key: root },
+		{ type: "parent", anchor: false, key: root },
+		{ type: "root", anchor: true, key: root },
+		{ type: "child", anchor: false, key: root },
 	])
 
 	willMount() {
@@ -69,7 +70,14 @@ export default class App extends Component<{}> {
 		if (columnTypes[focus - 1].type !== "parent") {
 			this.focusedColumn.set(0)
 			this.columnTypes.update(columnTypes => {
-				return columnTypes.slice(focus)
+				return columnTypes.slice(focus).map((item, index) => {
+					if (index === 0) {
+						item.anchor = true
+					} else {
+						item.anchor = false
+					}
+					return item
+				})
 			})
 			this.columnSelection.update(columnSelection => {
 				return columnSelection.slice(focus)
@@ -79,7 +87,14 @@ export default class App extends Component<{}> {
 
 		if (columnTypes[focus + 1].type !== "child") {
 			this.columnTypes.update(columnTypes => {
-				return columnTypes.slice(0, focus + 1)
+				return columnTypes.slice(0, focus + 1).map((item, index) => {
+					if (index === focus) {
+						item.anchor = true
+					} else {
+						item.anchor = false
+					}
+					return item
+				})
 			})
 			this.columnSelection.update(columnSelection => {
 				return columnSelection.slice(0, focus + 1)
@@ -191,7 +206,11 @@ export default class App extends Component<{}> {
 		if (focus === 0) {
 			const selectedItem = items[selection]
 			this.columnTypes.update(columnTypes => {
-				columnTypes.unshift({ type: "parent", key: selectedItem })
+				columnTypes.unshift({
+					type: "parent",
+					anchor: false,
+					key: selectedItem,
+				})
 				return columnTypes
 			})
 			this.columnSelection.update(columnSelection => {
@@ -204,7 +223,7 @@ export default class App extends Component<{}> {
 		if (focus === columnTypes.length - 1) {
 			const selectedItem = items[selection]
 			this.columnTypes.update(columnTypes => {
-				columnTypes.push({ type: "child", key: selectedItem })
+				columnTypes.push({ type: "child", anchor: false, key: selectedItem })
 				return columnTypes
 			})
 			this.columnSelection.update(columnSelection => {
@@ -225,7 +244,8 @@ export default class App extends Component<{}> {
 		}
 
 		const selectedItem = items[selection]
-		if (columnTypes[focus + 1].type === "child") {
+		const rightNeightbor = columnTypes[focus + 1]
+		if (rightNeightbor.type === "child" && !rightNeightbor.anchor) {
 			// Clear the selection to the right and update the key
 			this.columnSelection.update(state => {
 				state[focus + 1] = undefined
@@ -237,7 +257,8 @@ export default class App extends Component<{}> {
 			})
 		}
 
-		if (columnTypes[focus - 1].type === "parent") {
+		const leftNeighbor = columnTypes[focus - 1]
+		if (leftNeighbor.type === "parent" && !leftNeighbor.anchor) {
 			// Clear the selection to the left and update the key
 			this.columnSelection.update(state => {
 				state[focus - 1] = undefined
@@ -254,8 +275,13 @@ export default class App extends Component<{}> {
 	view() {
 		const columns = this.columnTypes
 			.get()
-			.map(getColumnItems)
-			.map((items, columnIndex) => {
+			.map(columnType => {
+				return {
+					items: getColumnItems(columnType),
+					anchor: columnType.anchor,
+				}
+			})
+			.map(({ items, anchor }, columnIndex) => {
 				const focused = columnIndex === this.focusedColumn.get()
 				return (
 					<div
@@ -277,7 +303,9 @@ export default class App extends Component<{}> {
 								<div
 									key={rowIndex}
 									style={{
-										border: selected ? "1px solid black" : "1px solid white",
+										border: selected
+											? anchor ? "1px solid red" : "1px solid black"
+											: "1px solid white",
 									}}
 								>
 									{source}
