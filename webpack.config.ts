@@ -36,10 +36,11 @@ const config: Configuration = {
 			template: path.join(__dirname, "src/index.html"),
 		}),
 	],
-	devServer: {
-		publicPath: "/",
-		historyApiFallback: true,
-	},
+}
+
+config["devServer"] = {
+	publicPath: "/",
+	historyApiFallback: true,
 }
 
 export default config
