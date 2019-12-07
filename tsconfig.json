@@ -4,7 +4,7 @@
 		"allowSyntheticDefaultImports": true,
 		"target": "es5",
 		"module": "commonjs",
-		"jsx": "preserve",
+		"jsx": "react",
 		"moduleResolution": "node",
 		"noImplicitAny": false,
 		"noUnusedLocals": true,
@@ -13,10 +13,6 @@
 		"strictNullChecks": true,
 		"preserveConstEnums": true,
 		"sourceMap": true,
-		"lib": [
-			"es2015",
-			"es2016",
-			"dom"
-		]
+		"lib": ["es2015", "es2016", "dom"]
 	}
 }

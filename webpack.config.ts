@@ -14,10 +14,7 @@ const config: Configuration = {
 				exclude: /node_modules/,
 				use: [
 					{
-						loader: "babel-loader",
-					},
-					{
-						loader: "ts-loader",
+						loader: "awesome-typescript-loader",
 					},
 				],
 			},
@@ -27,7 +24,6 @@ const config: Configuration = {
 	devtool: "source-map",
 	output: {
 		path: path.join(__dirname, "dist"),
-		publicPath: "/",
 		filename: "[name]-[chunkhash].js",
 		chunkFilename: "[name]-[chunkhash].js",
 	},
@@ -38,9 +34,12 @@ const config: Configuration = {
 	],
 }
 
-config["devServer"] = {
-	publicPath: "/",
-	historyApiFallback: true,
-}
+// Dev server configs aren't typed properly.
+Object.assign(config, {
+	devServer: {
+		publicPath: "/",
+		historyApiFallback: true,
+	},
+})
 
 export default config
