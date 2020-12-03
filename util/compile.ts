@@ -61,9 +61,6 @@ for (const [e, a, v, t] of eavt) {
 	}
 }
 
-// parent column renders backlinks with parent path.
-// child column doesnt need
-
 // Aggregate all refs up to their parents.
 for (let node of Object.values(nodes)) {
 	const done = new Set<number>()

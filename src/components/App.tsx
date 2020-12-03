@@ -1,6 +1,11 @@
-import React from "react"
+import React, {
+	useEffect,
+	useState,
+	useCallback,
+	useRef,
+	useLayoutEffect,
+} from "react"
 import { nodes } from "../../util/nodes"
-import { select } from "glamor"
 
 interface ColumnType {
 	type: "parent" | "child" | "root"
@@ -36,85 +41,142 @@ const initialState: AppState = {
 	],
 }
 
-export default class App extends React.PureComponent {
-	state: AppState = initialState
+export default function App() {
+	const [state, setState] = useState(initialState)
 
-	componentDidMount() {
-		window.addEventListener("keyup", this.handleKeyPress)
-	}
-
-	componentWillUnmount() {
-		window.removeEventListener("keyup", this.handleKeyPress)
-	}
-
-	private handleKeyPress = (event: KeyboardEvent) => {
+	const handleKeyPress = useCallback((event: KeyboardEvent) => {
 		if (event.code === "ArrowUp") {
 			event.preventDefault()
-			this.setState(up(this.state))
+			setState(up)
 		} else if (event.code === "ArrowDown") {
 			event.preventDefault()
-			this.setState(down(this.state))
+			setState(down)
 		} else if (event.code === "ArrowLeft") {
 			event.preventDefault()
-			this.setState(left(this.state))
+			setState(left)
 		} else if (event.code === "ArrowRight") {
 			event.preventDefault()
-			this.setState(right(this.state))
+			setState(right)
 		} else if (event.code === "Space") {
 			event.preventDefault()
-			this.setState(reroot(this.state))
+			setState(reroot)
 		}
-	}
+	}, [])
 
-	render() {
-		const columns = this.state.columnTypes
-			.map((columnType) => {
-				return {
-					items: getColumnItems(columnType),
-					anchor: columnType.anchor,
-				}
-			})
-			.map(({ items, anchor }, columnIndex) => {
-				const focused = columnIndex === this.state.focusedColumn
-				return (
-					<div
-						key={columnIndex}
-						style={{
-							display: "inline-block",
-							padding: 12,
-							width: 325,
-							height: "80vh",
-							overflowY: "auto",
-							overflowX: "hidden",
-							border: focused ? "1px solid black" : "1px solid white",
-						}}
-					>
-						{items.map((id, rowIndex) => {
-							const selection = this.state.columnSelection[columnIndex]
-							const selected = rowIndex === selection
-							return (
-								<div
-									key={rowIndex}
-									style={{
-										border: selected
-											? anchor
-												? "1px solid red"
-												: "1px solid black"
-											: "1px solid white",
-									}}
-								>
-									{id}: {nodes[id].title}
-								</div>
-							)
-						})}
-					</div>
-				)
-			})
+	useEffect(() => {
+		window.addEventListener("keydown", handleKeyPress)
+		return () => window.removeEventListener("keydown", handleKeyPress)
+	})
 
-		return (
-			<div style={{ overflowX: "auto", whiteSpace: "nowrap" }}>{columns}</div>
+	const container = useRef<HTMLDivElement | null>(null)
+
+	const n = useNthRender()
+
+	useLayoutEffect(() => {
+		const scroller = container.current
+		if (!scroller) {
+			return
+		}
+		const column = scroller.children[state.focusedColumn + 1] as HTMLDivElement
+
+		if (n === 0) {
+			// On initial render, scroll so that the focused column is centered.
+			scroller.scrollLeft =
+				column.offsetLeft - scroller.clientWidth / 2 + column.clientWidth / 2
+			return
+		}
+
+		// When re-rooting, preserve the position of the focused element.
+
+		// Just make sure the focused column is visible.
+		console.log(
+			scroller.scrollLeft,
+			scroller.clientWidth,
+
+			column.offsetLeft,
+			column.clientWidth
 		)
-	}
+
+		if (scroller.scrollLeft > column.offsetLeft) {
+			scroller.scrollLeft = column.offsetLeft
+		} else if (
+			column.offsetLeft >
+			scroller.scrollLeft + scroller.clientWidth - column.clientWidth
+		) {
+			scroller.scrollLeft =
+				column.offsetLeft - scroller.clientWidth + column.clientWidth
+		}
+	}, [state.focusedColumn])
+
+	const colWidth = 325
+	const height = colWidth * 1.5
+	const width = colWidth * 4
+
+	const columns = state.columnTypes
+		.map((columnType) => {
+			return {
+				items: getColumnItems(columnType),
+				anchor: columnType.anchor,
+			}
+		})
+		.map(({ items, anchor }, columnIndex) => {
+			const focused = columnIndex === state.focusedColumn
+			return (
+				<div
+					key={columnIndex}
+					style={{
+						boxSizing: "border-box",
+						display: "inline-block",
+						padding: 12,
+						width: 325,
+						height: height,
+						overflowY: "auto",
+						overflowX: "hidden",
+						background: focused ? "#e2e2e2" : undefined,
+					}}
+				>
+					{items.map((id, rowIndex) => {
+						const selection = state.columnSelection[columnIndex]
+						const selected = rowIndex === selection
+						return (
+							<div
+								key={rowIndex}
+								style={{
+									border: selected
+										? anchor
+											? "1px solid red"
+											: "1px solid black"
+										: undefined,
+									boxSizing: "border-box",
+								}}
+							>
+								{id}: {nodes[id].title}
+							</div>
+						)
+					})}
+				</div>
+			)
+		})
+
+	const buffer = <div style={{ display: "inline-block", width }}></div>
+	return (
+		<div
+			ref={container}
+			style={{
+				height: height,
+				width: width,
+				border: "1px solid black",
+				overflowX: "auto",
+				overflowY: "hidden",
+				whiteSpace: "nowrap",
+				boxSizing: "border-box",
+			}}
+		>
+			{buffer}
+			{columns}
+			{buffer}
+		</div>
+	)
 }
 
 function updateBounds(state: AppState): AppState {
@@ -346,16 +408,27 @@ function right(state: AppState): AppState {
 				return i === newFocus ? 0 : x
 			})
 		}
-		console.log("before", state)
 		state = {
 			...state,
 			focusedColumn: newFocus,
 			columnSelection: newColumnSelection,
 		}
-		console.log("after", state)
 		state = updateBounds(state)
-		console.log("bounds", state)
 	}
 
 	return state
+}
+
+function useNthRender() {
+	const nth = useRef(-1)
+	nth.current += 1
+	return nth.current
+}
+
+function usePrevious<T>(value: T) {
+	const ref = useRef(value)
+	useEffect(() => {
+		ref.current = value
+	}, [value])
+	return ref.current
 }

@@ -10,8 +10,6 @@ To run this project, `npm install && npm start`.
 
 # To Do
 
-Explain how to download Roam graph.
-Remove reactive-magic.
-Use hooks.
-Performance.
-Render title.
+Preserve scroll position when navigating around.
+Parent columns are the backlinks. Should render the parent path as well.
+
