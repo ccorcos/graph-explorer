@@ -8,11 +8,10 @@ The current demo uses a graph of code dependencies.
 
 To run this project, `npm install && npm start`.
 
+# To Do
 
-## EDN
-
-./node_modules/.bin/edn-to-json help.edn > help3.json
-
-remove #datascript schema head.
-change ##NaN to 0.
-
+Explain how to download Roam graph.
+Remove reactive-magic.
+Use hooks.
+Performance.
+Render title.
