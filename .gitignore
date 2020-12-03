@@ -3,3 +3,5 @@ node_modules
 *.log
 dist
 package-lock.json
+util/*.edn
+util/*.json

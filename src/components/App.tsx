@@ -1,53 +1,33 @@
 import * as React from "react"
 import Component from "reactive-magic/component"
 import { Value } from "reactive-magic"
-import dependencies from "../dependencies"
-
-const childMap: { [key: string]: Set<string> } = {}
-const parentMap: { [key: string]: Set<string> } = {}
-
-dependencies.dependencies.forEach(parentDep => {
-	const parent = parentDep.source
-	if (!childMap[parent]) {
-		childMap[parent] = new Set()
-	}
-	parentDep.dependencies.forEach(childDep => {
-		const child = childDep.resolved
-		if (!parentMap[child]) {
-			parentMap[child] = new Set()
-		}
-		childMap[parent].add(child)
-		parentMap[child].add(parent)
-	})
-})
+import { nodes } from "../../util/nodes"
 
 interface ColumnType {
 	type: "parent" | "child" | "root"
-	key: string
+	id: number
 	anchor: boolean
 }
 
-function getColumnItems({ type, key }: ColumnType) {
+function getColumnItems({ type, id }: ColumnType) {
 	if (type === "parent") {
-		const set = parentMap[key]
-		return set ? Array.from(set) : []
+		return nodes[id]?.backlinks || []
 	} else if (type === "child") {
-		const set = childMap[key]
-		return set ? Array.from(set) : []
+		return nodes[id]?.refs || []
 	} else {
-		return [key]
+		return [id]
 	}
 }
 
-const root = "src/client/main.ts"
+const root = 21
 
 export default class App extends Component<{}> {
 	private focusedColumn = new Value(1)
 	private columnSelection = new Value([undefined, 0, undefined])
 	private columnTypes = new Value<Array<ColumnType>>([
-		{ type: "parent", anchor: false, key: root },
-		{ type: "root", anchor: true, key: root },
-		{ type: "child", anchor: false, key: root },
+		{ type: "parent", anchor: false, id: root },
+		{ type: "root", anchor: true, id: root },
+		{ type: "child", anchor: false, id: root },
 	])
 
 	willMount() {
@@ -64,7 +44,7 @@ export default class App extends Component<{}> {
 		const leftNeighbor = columnTypes[focus - 1]
 		if (leftNeighbor.type !== "parent" || leftNeighbor.anchor) {
 			this.focusedColumn.set(0)
-			this.columnTypes.update(columnTypes => {
+			this.columnTypes.update((columnTypes) => {
 				return columnTypes.slice(focus).map((item, index) => {
 					if (index === 0) {
 						item.anchor = true
@@ -74,7 +54,7 @@ export default class App extends Component<{}> {
 					return item
 				})
 			})
-			this.columnSelection.update(columnSelection => {
+			this.columnSelection.update((columnSelection) => {
 				return columnSelection.slice(focus)
 			})
 			this.updateBounds()
@@ -82,7 +62,7 @@ export default class App extends Component<{}> {
 
 		const rightNeightbor = columnTypes[focus + 1]
 		if (rightNeightbor.type !== "child" || rightNeightbor.anchor) {
-			this.columnTypes.update(columnTypes => {
+			this.columnTypes.update((columnTypes) => {
 				return columnTypes.slice(0, focus + 1).map((item, index) => {
 					if (index === focus) {
 						item.anchor = true
@@ -92,7 +72,7 @@ export default class App extends Component<{}> {
 					return item
 				})
 			})
-			this.columnSelection.update(columnSelection => {
+			this.columnSelection.update((columnSelection) => {
 				return columnSelection.slice(0, focus + 1)
 			})
 			this.updateBounds()
@@ -123,14 +103,14 @@ export default class App extends Component<{}> {
 		const selection = this.columnSelection.get()[focus]
 		if (selection === undefined) {
 			// If there's nothing selection, set it to zero
-			this.columnSelection.update(state => {
+			this.columnSelection.update((state) => {
 				state[focus] = 0
 				return state
 			})
 			this.updateNeighbors()
 		} else if (selection > 0) {
 			// Or decrement the selection but don't go out of bounds
-			this.columnSelection.update(state => {
+			this.columnSelection.update((state) => {
 				state[focus] = selection - 1
 				return state
 			})
@@ -145,13 +125,13 @@ export default class App extends Component<{}> {
 		const items = getColumnItems(column)
 		if (selection === undefined) {
 			// This shouldn't happen...
-			this.columnSelection.update(state => {
+			this.columnSelection.update((state) => {
 				state[focus] = 0
 				return state
 			})
 			this.updateNeighbors()
 		} else if (selection + 1 < items.length) {
-			this.columnSelection.update(state => {
+			this.columnSelection.update((state) => {
 				state[focus] = selection + 1
 				return state
 			})
@@ -165,7 +145,7 @@ export default class App extends Component<{}> {
 		if (getColumnItems(this.columnTypes.get()[newFocus]).length !== 0) {
 			this.focusedColumn.set(newFocus)
 			if (this.columnSelection.get()[newFocus] === undefined) {
-				this.columnSelection.update(columnSelection => {
+				this.columnSelection.update((columnSelection) => {
 					columnSelection[newFocus] = 0
 					return columnSelection
 				})
@@ -180,7 +160,7 @@ export default class App extends Component<{}> {
 		if (getColumnItems(this.columnTypes.get()[newFocus]).length !== 0) {
 			this.focusedColumn.set(newFocus)
 			if (this.columnSelection.get()[newFocus] === undefined) {
-				this.columnSelection.update(columnSelection => {
+				this.columnSelection.update((columnSelection) => {
 					columnSelection[newFocus] = 0
 					return columnSelection
 				})
@@ -201,15 +181,15 @@ export default class App extends Component<{}> {
 
 		if (focus === 0) {
 			const selectedItem = items[selection]
-			this.columnTypes.update(columnTypes => {
+			this.columnTypes.update((columnTypes) => {
 				columnTypes.unshift({
 					type: "parent",
 					anchor: false,
-					key: selectedItem,
+					id: selectedItem,
 				})
 				return columnTypes
 			})
-			this.columnSelection.update(columnSelection => {
+			this.columnSelection.update((columnSelection) => {
 				columnSelection.unshift(undefined)
 				return columnSelection
 			})
@@ -218,11 +198,11 @@ export default class App extends Component<{}> {
 
 		if (focus === columnTypes.length - 1) {
 			const selectedItem = items[selection]
-			this.columnTypes.update(columnTypes => {
-				columnTypes.push({ type: "child", anchor: false, key: selectedItem })
+			this.columnTypes.update((columnTypes) => {
+				columnTypes.push({ type: "child", anchor: false, id: selectedItem })
 				return columnTypes
 			})
-			this.columnSelection.update(columnSelection => {
+			this.columnSelection.update((columnSelection) => {
 				columnSelection.push(undefined)
 				return columnSelection
 			})
@@ -243,12 +223,12 @@ export default class App extends Component<{}> {
 		const rightNeightbor = columnTypes[focus + 1]
 		if (rightNeightbor.type === "child" && !rightNeightbor.anchor) {
 			// Clear the selection to the right and update the key
-			this.columnSelection.update(state => {
+			this.columnSelection.update((state) => {
 				state[focus + 1] = undefined
 				return state.slice(0, focus + 2)
 			})
-			this.columnTypes.update(state => {
-				state[focus + 1].key = selectedItem
+			this.columnTypes.update((state) => {
+				state[focus + 1].id = selectedItem
 				return state.slice(0, focus + 2)
 			})
 		}
@@ -256,12 +236,12 @@ export default class App extends Component<{}> {
 		const leftNeighbor = columnTypes[focus - 1]
 		if (leftNeighbor.type === "parent" && !leftNeighbor.anchor) {
 			// Clear the selection to the left and update the key
-			this.columnSelection.update(state => {
+			this.columnSelection.update((state) => {
 				state[focus - 1] = undefined
 				return state.slice(focus - 1)
 			})
-			this.columnTypes.update(state => {
-				state[focus - 1].key = selectedItem
+			this.columnTypes.update((state) => {
+				state[focus - 1].id = selectedItem
 				return state.slice(focus - 1)
 			})
 			this.focusedColumn.set(1)
@@ -271,7 +251,7 @@ export default class App extends Component<{}> {
 	view() {
 		const columns = this.columnTypes
 			.get()
-			.map(columnType => {
+			.map((columnType) => {
 				return {
 					items: getColumnItems(columnType),
 					anchor: columnType.anchor,
@@ -300,7 +280,9 @@ export default class App extends Component<{}> {
 									key={rowIndex}
 									style={{
 										border: selected
-											? anchor ? "1px solid red" : "1px solid black"
+											? anchor
+												? "1px solid red"
+												: "1px solid black"
 											: "1px solid white",
 									}}
 								>
