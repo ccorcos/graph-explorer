@@ -3,7 +3,7 @@
 	"compilerOptions": {
 		"allowSyntheticDefaultImports": true,
 		"esModuleInterop": true,
-		"target": "es5",
+		"target": "es2018",
 		"module": "commonjs",
 		"jsx": "react",
 		"moduleResolution": "node",

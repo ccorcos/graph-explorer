@@ -89,7 +89,7 @@ export default class App extends React.PureComponent {
 							border: focused ? "1px solid black" : "1px solid white",
 						}}
 					>
-						{items.map((source, rowIndex) => {
+						{items.map((id, rowIndex) => {
 							const selection = this.state.columnSelection[columnIndex]
 							const selected = rowIndex === selection
 							return (
@@ -103,7 +103,7 @@ export default class App extends React.PureComponent {
 											: "1px solid white",
 									}}
 								>
-									{source}
+									{id}: {nodes[id].title}
 								</div>
 							)
 						})}

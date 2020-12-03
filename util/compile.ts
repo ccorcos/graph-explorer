@@ -29,21 +29,14 @@ const eavt = JSON.parse(fs.readFileSync("tmp.json", "utf8")) as Array<
 	[number, string, any, number]
 >
 
-type Node = {
-	id: number
-	title?: string
-	refs?: Array<number>
-	backlinks?: Array<number>
-}
-
 const nodes: Record<string, Node> = {}
 
 for (const [e, a, v, t] of eavt) {
-	if (a === "title" || a === "refs") {
+	if (a === "title" || a === "string" || a === "refs" || a === "children") {
 		if (!nodes[e]) {
 			nodes[e] = { id: e }
 		}
-		if (a === "title") {
+		if (a === "title" || a === "string") {
 			nodes[e].title = v
 		}
 		if (a === "refs") {
@@ -59,7 +52,55 @@ for (const [e, a, v, t] of eavt) {
 			}
 			nodes[v].backlinks?.push(e)
 		}
+		if (a === "children") {
+			if (!nodes[v]) {
+				nodes[v] = { id: v }
+			}
+			nodes[v].parent = e
+		}
 	}
+}
+
+// parent column renders backlinks with parent path.
+// child column doesnt need
+
+// Aggregate all refs up to their parents.
+for (let node of Object.values(nodes)) {
+	const done = new Set<number>()
+	let child = node
+	console.log("START", child.id)
+	while (child.parent) {
+		if (done.has(child.id)) {
+			break
+		}
+		done.add(child.id)
+
+		const parent = nodes[child.parent]
+		if (parent.id === child.id) {
+			throw new Error("Uh oh")
+		}
+		if (!parent.refs) {
+			parent.refs = []
+		}
+		if (parent.refs && child.refs) {
+			const set = new Set(parent.refs)
+			for (const item of child.refs) {
+				set.add(item)
+			}
+			parent.refs = Array.from(set)
+		}
+		// console.log(parent.id, child.id)
+		child = parent
+	}
+}
+
+type Node = {
+	id: number
+	title?: string
+	refs?: Array<number>
+	backlinks?: Array<number>
+	parent?: number
+	children?: Array<number>
 }
 
 const contents = `
@@ -68,6 +109,8 @@ export type Node = {
 	title?: string
 	refs?: Array<number>
 	backlinks?: Array<number>
+	parent?: number
+	children?: Array<number>
 }
 
 export const nodes: Record<number, Node> = ${JSON.stringify(nodes, null, 2)}
