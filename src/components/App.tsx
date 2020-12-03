@@ -1,7 +1,6 @@
-import * as React from "react"
-import Component from "reactive-magic/component"
-import { Value } from "reactive-magic"
+import React from "react"
 import { nodes } from "../../util/nodes"
+import { select } from "glamor"
 
 interface ColumnType {
 	type: "parent" | "child" | "root"
@@ -21,236 +20,54 @@ function getColumnItems({ type, id }: ColumnType) {
 
 const root = 21
 
-export default class App extends Component<{}> {
-	private focusedColumn = new Value(1)
-	private columnSelection = new Value([undefined, 0, undefined])
-	private columnTypes = new Value<Array<ColumnType>>([
+type AppState = {
+	focusedColumn: number
+	columnSelection: Array<number | undefined>
+	columnTypes: Array<ColumnType>
+}
+
+const initialState: AppState = {
+	focusedColumn: 1,
+	columnSelection: [undefined, 0, undefined],
+	columnTypes: [
 		{ type: "parent", anchor: false, id: root },
 		{ type: "root", anchor: true, id: root },
 		{ type: "child", anchor: false, id: root },
-	])
+	],
+}
 
-	willMount() {
+export default class App extends React.PureComponent {
+	state: AppState = initialState
+
+	componentDidMount() {
 		window.addEventListener("keyup", this.handleKeyPress)
 	}
 
-	willUnMount() {
+	componentWillUnmount() {
 		window.removeEventListener("keyup", this.handleKeyPress)
-	}
-
-	private reroot() {
-		const focus = this.focusedColumn.get()
-		const columnTypes = this.columnTypes.get()
-		const leftNeighbor = columnTypes[focus - 1]
-		if (leftNeighbor.type !== "parent" || leftNeighbor.anchor) {
-			this.focusedColumn.set(0)
-			this.columnTypes.update((columnTypes) => {
-				return columnTypes.slice(focus).map((item, index) => {
-					if (index === 0) {
-						item.anchor = true
-					} else {
-						item.anchor = false
-					}
-					return item
-				})
-			})
-			this.columnSelection.update((columnSelection) => {
-				return columnSelection.slice(focus)
-			})
-			this.updateBounds()
-		}
-
-		const rightNeightbor = columnTypes[focus + 1]
-		if (rightNeightbor.type !== "child" || rightNeightbor.anchor) {
-			this.columnTypes.update((columnTypes) => {
-				return columnTypes.slice(0, focus + 1).map((item, index) => {
-					if (index === focus) {
-						item.anchor = true
-					} else {
-						item.anchor = false
-					}
-					return item
-				})
-			})
-			this.columnSelection.update((columnSelection) => {
-				return columnSelection.slice(0, focus + 1)
-			})
-			this.updateBounds()
-		}
 	}
 
 	private handleKeyPress = (event: KeyboardEvent) => {
 		if (event.code === "ArrowUp") {
-			this.up()
 			event.preventDefault()
+			this.setState(up(this.state))
 		} else if (event.code === "ArrowDown") {
-			this.down()
 			event.preventDefault()
+			this.setState(down(this.state))
 		} else if (event.code === "ArrowLeft") {
-			this.left()
 			event.preventDefault()
+			this.setState(left(this.state))
 		} else if (event.code === "ArrowRight") {
-			this.right()
 			event.preventDefault()
+			this.setState(right(this.state))
 		} else if (event.code === "Space") {
-			this.reroot()
 			event.preventDefault()
+			this.setState(reroot(this.state))
 		}
 	}
 
-	private up() {
-		const focus = this.focusedColumn.get()
-		const selection = this.columnSelection.get()[focus]
-		if (selection === undefined) {
-			// If there's nothing selection, set it to zero
-			this.columnSelection.update((state) => {
-				state[focus] = 0
-				return state
-			})
-			this.updateNeighbors()
-		} else if (selection > 0) {
-			// Or decrement the selection but don't go out of bounds
-			this.columnSelection.update((state) => {
-				state[focus] = selection - 1
-				return state
-			})
-			this.updateNeighbors()
-		}
-	}
-
-	private down() {
-		const focus = this.focusedColumn.get()
-		const column = this.columnTypes.get()[focus]
-		const selection = this.columnSelection.get()[focus]
-		const items = getColumnItems(column)
-		if (selection === undefined) {
-			// This shouldn't happen...
-			this.columnSelection.update((state) => {
-				state[focus] = 0
-				return state
-			})
-			this.updateNeighbors()
-		} else if (selection + 1 < items.length) {
-			this.columnSelection.update((state) => {
-				state[focus] = selection + 1
-				return state
-			})
-			this.updateNeighbors()
-		}
-	}
-
-	private left() {
-		const focus = this.focusedColumn.get()
-		const newFocus = focus - 1
-		if (getColumnItems(this.columnTypes.get()[newFocus]).length !== 0) {
-			this.focusedColumn.set(newFocus)
-			if (this.columnSelection.get()[newFocus] === undefined) {
-				this.columnSelection.update((columnSelection) => {
-					columnSelection[newFocus] = 0
-					return columnSelection
-				})
-			}
-			this.updateBounds()
-		}
-	}
-
-	private right() {
-		const focus = this.focusedColumn.get()
-		const newFocus = focus + 1
-		if (getColumnItems(this.columnTypes.get()[newFocus]).length !== 0) {
-			this.focusedColumn.set(newFocus)
-			if (this.columnSelection.get()[newFocus] === undefined) {
-				this.columnSelection.update((columnSelection) => {
-					columnSelection[newFocus] = 0
-					return columnSelection
-				})
-			}
-			this.updateBounds()
-		}
-	}
-
-	private updateBounds() {
-		const focus = this.focusedColumn.get()
-		const columnTypes = this.columnTypes.get()
-		const column = columnTypes[focus]
-		const items = getColumnItems(column)
-		const selection = this.columnSelection.get()[focus]
-		if (selection === undefined) {
-			return
-		}
-
-		if (focus === 0) {
-			const selectedItem = items[selection]
-			this.columnTypes.update((columnTypes) => {
-				columnTypes.unshift({
-					type: "parent",
-					anchor: false,
-					id: selectedItem,
-				})
-				return columnTypes
-			})
-			this.columnSelection.update((columnSelection) => {
-				columnSelection.unshift(undefined)
-				return columnSelection
-			})
-			this.focusedColumn.set(1)
-		}
-
-		if (focus === columnTypes.length - 1) {
-			const selectedItem = items[selection]
-			this.columnTypes.update((columnTypes) => {
-				columnTypes.push({ type: "child", anchor: false, id: selectedItem })
-				return columnTypes
-			})
-			this.columnSelection.update((columnSelection) => {
-				columnSelection.push(undefined)
-				return columnSelection
-			})
-		}
-	}
-
-	private updateNeighbors() {
-		const focus = this.focusedColumn.get()
-		const columnTypes = this.columnTypes.get()
-		const column = columnTypes[focus]
-		const items = getColumnItems(column)
-		const selection = this.columnSelection.get()[focus]
-		if (selection === undefined) {
-			return
-		}
-
-		const selectedItem = items[selection]
-		const rightNeightbor = columnTypes[focus + 1]
-		if (rightNeightbor.type === "child" && !rightNeightbor.anchor) {
-			// Clear the selection to the right and update the key
-			this.columnSelection.update((state) => {
-				state[focus + 1] = undefined
-				return state.slice(0, focus + 2)
-			})
-			this.columnTypes.update((state) => {
-				state[focus + 1].id = selectedItem
-				return state.slice(0, focus + 2)
-			})
-		}
-
-		const leftNeighbor = columnTypes[focus - 1]
-		if (leftNeighbor.type === "parent" && !leftNeighbor.anchor) {
-			// Clear the selection to the left and update the key
-			this.columnSelection.update((state) => {
-				state[focus - 1] = undefined
-				return state.slice(focus - 1)
-			})
-			this.columnTypes.update((state) => {
-				state[focus - 1].id = selectedItem
-				return state.slice(focus - 1)
-			})
-			this.focusedColumn.set(1)
-		}
-	}
-
-	view() {
-		const columns = this.columnTypes
-			.get()
+	render() {
+		const columns = this.state.columnTypes
 			.map((columnType) => {
 				return {
 					items: getColumnItems(columnType),
@@ -258,7 +75,7 @@ export default class App extends Component<{}> {
 				}
 			})
 			.map(({ items, anchor }, columnIndex) => {
-				const focused = columnIndex === this.focusedColumn.get()
+				const focused = columnIndex === this.state.focusedColumn
 				return (
 					<div
 						key={columnIndex}
@@ -273,7 +90,7 @@ export default class App extends Component<{}> {
 						}}
 					>
 						{items.map((source, rowIndex) => {
-							const selection = this.columnSelection.get()[columnIndex]
+							const selection = this.state.columnSelection[columnIndex]
 							const selected = rowIndex === selection
 							return (
 								<div
@@ -298,4 +115,247 @@ export default class App extends Component<{}> {
 			<div style={{ overflowX: "auto", whiteSpace: "nowrap" }}>{columns}</div>
 		)
 	}
+}
+
+function updateBounds(state: AppState): AppState {
+	const { focusedColumn, columnTypes, columnSelection } = state
+	const column = columnTypes[focusedColumn]
+	const items = getColumnItems(column)
+	const selection = columnSelection[focusedColumn]
+	if (selection === undefined) {
+		return state
+	}
+
+	if (focusedColumn === 0) {
+		const selectedItem = items[selection]
+		state = {
+			...state,
+			columnTypes: [
+				{ type: "parent", anchor: false, id: selectedItem },
+				...columnTypes,
+			],
+			columnSelection: [undefined, ...columnSelection],
+			focusedColumn: 1,
+		}
+	}
+
+	if (focusedColumn === columnTypes.length - 1) {
+		const selectedItem = items[selection]
+		state = {
+			...state,
+			columnTypes: [
+				...columnTypes,
+				{ type: "child", anchor: false, id: selectedItem },
+			],
+			columnSelection: [...columnSelection, undefined],
+		}
+	}
+	return state
+}
+
+function updateNeighbors(state: AppState): AppState {
+	return updateLeftNeighbor(updateRightNeighbor(state))
+}
+
+function updateRightNeighbor(state: AppState): AppState {
+	const { focusedColumn, columnTypes, columnSelection } = state
+	const column = columnTypes[focusedColumn]
+	const items = getColumnItems(column)
+	const selection = columnSelection[focusedColumn]
+	if (selection === undefined) {
+		return state
+	}
+
+	const selectedItem = items[selection]
+	const rightNeightbor = columnTypes[focusedColumn + 1]
+	if (rightNeightbor.type === "child" && !rightNeightbor.anchor) {
+		state = {
+			...state,
+			// Clear the selection to the right and update the key
+			columnSelection: columnSelection
+				.map((x, i) => {
+					return i === focusedColumn + 1 ? undefined : x
+				})
+				.slice(0, focusedColumn + 2),
+			columnTypes: columnTypes
+				.map((x, i) => {
+					return i === focusedColumn + 1 ? { ...x, id: selectedItem } : x
+				})
+				.slice(0, focusedColumn + 2),
+		}
+	}
+	return state
+}
+
+function updateLeftNeighbor(state: AppState): AppState {
+	const { focusedColumn, columnTypes, columnSelection } = state
+	const column = columnTypes[focusedColumn]
+	const items = getColumnItems(column)
+	const selection = columnSelection[focusedColumn]
+	if (selection === undefined) {
+		return state
+	}
+
+	const selectedItem = items[selection]
+	const leftNeighbor = columnTypes[focusedColumn - 1]
+	if (leftNeighbor.type === "parent" && !leftNeighbor.anchor) {
+		state = {
+			...state,
+			// Clear the selection to the left and update the key
+			columnSelection: columnSelection
+				.map((x, i) => {
+					return i === focusedColumn - 1 ? undefined : x
+				})
+				.slice(focusedColumn - 1),
+			columnTypes: columnTypes
+				.map((x, i) => {
+					return i === focusedColumn - 1 ? { ...x, id: selectedItem } : x
+				})
+				.slice(focusedColumn - 1),
+			focusedColumn: 1,
+		}
+	}
+
+	return state
+}
+
+function reroot(state: AppState): AppState {
+	const { focusedColumn, columnTypes, columnSelection } = state
+	const leftNeighbor = columnTypes[focusedColumn - 1]
+	if (leftNeighbor.type !== "parent" || leftNeighbor.anchor) {
+		state = {
+			...state,
+			focusedColumn: 0,
+			columnTypes: columnTypes.slice(focusedColumn).map((item, index) => {
+				if (index === 0) {
+					item.anchor = true
+				} else {
+					item.anchor = false
+				}
+				return item
+			}),
+			columnSelection: columnSelection.slice(focusedColumn),
+		}
+		state = updateBounds(state)
+	}
+
+	const rightNeightbor = columnTypes[focusedColumn + 1]
+	if (rightNeightbor.type !== "child" || rightNeightbor.anchor) {
+		state = {
+			...state,
+			columnTypes: columnTypes
+				.slice(0, focusedColumn + 1)
+				.map((item, index) => {
+					if (index === focusedColumn) {
+						item.anchor = true
+					} else {
+						item.anchor = false
+					}
+					return item
+				}),
+			columnSelection: columnSelection.slice(0, focusedColumn + 1),
+		}
+		state = updateBounds(state)
+	}
+
+	return state
+}
+
+function up(state: AppState): AppState {
+	const { focusedColumn, columnSelection } = state
+	const selection = columnSelection[focusedColumn]
+	if (selection === undefined) {
+		state = {
+			...state,
+			// If there's nothing selection, set it to zero
+			columnSelection: columnSelection.map((x, i) => {
+				return i === focusedColumn ? 0 : x
+			}),
+		}
+		state = updateNeighbors(state)
+	} else if (selection > 0) {
+		state = {
+			...state,
+			// Or decrement the selection but don't go out of bounds
+			columnSelection: columnSelection.map((x, i) => {
+				return i === focusedColumn ? selection - 1 : x
+			}),
+		}
+		state = updateNeighbors(state)
+	}
+
+	return state
+}
+
+function down(state: AppState): AppState {
+	const { focusedColumn, columnTypes, columnSelection } = state
+	const column = columnTypes[focusedColumn]
+	const selection = columnSelection[focusedColumn]
+	const items = getColumnItems(column)
+	if (selection === undefined) {
+		// This shouldn't happen...
+		state = {
+			...state,
+			// If there's nothing selection, set it to zero
+			columnSelection: columnSelection.map((x, i) => {
+				return i === focusedColumn ? 0 : x
+			}),
+		}
+		state = updateNeighbors(state)
+	} else if (selection + 1 < items.length) {
+		state = {
+			...state,
+			columnSelection: columnSelection.map((x, i) => {
+				return i === focusedColumn ? selection + 1 : x
+			}),
+		}
+		state = updateNeighbors(state)
+	}
+
+	return state
+}
+
+function left(state: AppState): AppState {
+	const { focusedColumn, columnTypes, columnSelection } = state
+	const newFocus = focusedColumn - 1
+	if (getColumnItems(columnTypes[newFocus]).length !== 0) {
+		let newColumnSelection = columnSelection
+		if (columnSelection[newFocus] === undefined) {
+			newColumnSelection = columnSelection.map((x, i) => {
+				return i === newFocus ? 0 : x
+			})
+		}
+		state = {
+			...state,
+			focusedColumn: newFocus,
+			columnSelection: newColumnSelection,
+		}
+		state = updateBounds(state)
+	}
+
+	return state
+}
+
+function right(state: AppState): AppState {
+	const { focusedColumn, columnTypes, columnSelection } = state
+	const newFocus = focusedColumn + 1
+	if (getColumnItems(columnTypes[newFocus]).length !== 0) {
+		let newColumnSelection = columnSelection
+		if (columnSelection[newFocus] === undefined) {
+			newColumnSelection = columnSelection.map((x, i) => {
+				return i === newFocus ? 0 : x
+			})
+		}
+		console.log("before", state)
+		state = {
+			...state,
+			focusedColumn: newFocus,
+			columnSelection: newColumnSelection,
+		}
+		console.log("after", state)
+		state = updateBounds(state)
+		console.log("bounds", state)
+	}
+
+	return state
 }
