@@ -10,6 +10,7 @@ To run this project, `npm install && npm start`.
 
 # To Do
 
-Preserve scroll position when navigating around.
-Parent columns are the backlinks. Should render the parent path as well.
-
+- Preserve scroll position when navigating around.
+- Parent columns are the backlinks. Should render the parent path as well.
+- 35878 parent missing.
+- Maybe we need some way doing all of this without having to re-root...

@@ -79,33 +79,9 @@ export default function App() {
 		}
 		const column = scroller.children[state.focusedColumn + 1] as HTMLDivElement
 
-		if (n === 0) {
-			// On initial render, scroll so that the focused column is centered.
-			scroller.scrollLeft =
-				column.offsetLeft - scroller.clientWidth / 2 + column.clientWidth / 2
-			return
-		}
-
-		// When re-rooting, preserve the position of the focused element.
-
-		// Just make sure the focused column is visible.
-		console.log(
-			scroller.scrollLeft,
-			scroller.clientWidth,
-
-			column.offsetLeft,
-			column.clientWidth
-		)
-
-		if (scroller.scrollLeft > column.offsetLeft) {
-			scroller.scrollLeft = column.offsetLeft
-		} else if (
-			column.offsetLeft >
-			scroller.scrollLeft + scroller.clientWidth - column.clientWidth
-		) {
-			scroller.scrollLeft =
-				column.offsetLeft - scroller.clientWidth + column.clientWidth
-		}
+		scroller.scrollLeft =
+			column.offsetLeft - scroller.clientWidth / 2 + column.clientWidth / 2
+		return
 	}, [state.focusedColumn])
 
 	const colWidth = 325
@@ -158,7 +134,9 @@ export default function App() {
 			)
 		})
 
-	const buffer = <div style={{ display: "inline-block", width }}></div>
+	const buffer = (
+		<div style={{ display: "inline-block", width: 2 * colWidth }}></div>
+	)
 	return (
 		<div
 			ref={container}
@@ -166,7 +144,7 @@ export default function App() {
 				height: height,
 				width: width,
 				border: "1px solid black",
-				overflowX: "auto",
+				overflowX: "hidden",
 				overflowY: "hidden",
 				whiteSpace: "nowrap",
 				boxSizing: "border-box",
