@@ -73,23 +73,49 @@ for (let node of Object.values(nodes)) {
 		done.add(child.id)
 
 		const parent = nodes[child.parent]
-		if (parent.id === child.id) {
-			throw new Error("Uh oh")
+
+		// Parent/Child pointers.
+		const refs = new Set(parent.refs)
+		refs.add(child.id)
+		for (const ref of child.refs || []) {
+			// Parent refs all its child refs.
+			refs.add(ref)
 		}
-		if (!parent.refs) {
-			parent.refs = []
+		parent.refs = Array.from(refs)
+
+		const backlinks = new Set(child.backlinks)
+		backlinks.add(parent.id)
+		let p = parent.parent
+		while (p) {
+			// Child backlinks all its parents.
+			backlinks.add(p)
+			p = nodes[p].parent
 		}
-		if (parent.refs && child.refs) {
-			const set = new Set(parent.refs)
-			for (const item of child.refs) {
-				set.add(item)
-			}
-			parent.refs = Array.from(set)
-		}
-		// console.log(parent.id, child.id)
+		child.backlinks = Array.from(backlinks)
+
 		child = parent
 	}
 }
+
+// Root is backlink to all children.
+
+// // Make sure all refs/backlinks go both ways.
+// for (let node of Object.values(nodes)) {
+// 	if (node.backlinks) {
+// 		for (const backlink of node.backlinks) {
+// 			const refs = new Set(nodes[backlink].refs)
+// 			refs.add(node.id)
+// 			nodes[backlink].refs = Array.from(refs)
+// 		}
+// 	}
+// 	if (node.refs) {
+// 		for (const ref of node.refs) {
+// 			const backlinks = new Set(nodes[ref].backlinks)
+// 			backlinks.add(node.id)
+// 			nodes[ref].backlinks = Array.from(backlinks)
+// 		}
+// 	}
+// }
 
 type Node = {
 	id: number

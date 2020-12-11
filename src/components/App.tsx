@@ -57,7 +57,7 @@ export default function App() {
 		} else if (event.code === "ArrowRight") {
 			event.preventDefault()
 			setState(right)
-		} else if (event.code === "Space") {
+		} else if (event.code === "Space" || event.code === "Enter") {
 			event.preventDefault()
 			setState(reroot)
 		}
@@ -141,6 +141,7 @@ export default function App() {
 		<div
 			ref={container}
 			style={{
+				margin: "2em auto",
 				height: height,
 				width: width,
 				border: "1px solid black",
